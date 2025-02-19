@@ -24,8 +24,7 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             )
         }
     }
@@ -88,6 +87,15 @@ tasks.register("removeDeprecatedCode", Delete::class) {
 fun processSourceFiles(sourceDir: File, currentVersion: String) {
     sourceDir.walk().filter { it.isFile && it.extension == "kt" }.forEach { file ->
         val lines = file.readLines()
+
+        val isClassAnnotated = isClassAnnotatedForRemoval(lines, currentVersion)
+
+        if (isClassAnnotated) {
+            println("Deleting file: ${file.path} (class is annotated with @RemoveAfter)")
+            file.delete()
+            return@forEach
+        }
+
         val modifiedLines = mutableListOf<String>()
         var i = 0
 
@@ -100,7 +108,7 @@ fun processSourceFiles(sourceDir: File, currentVersion: String) {
                     val targetVersion = match.groupValues[1]
                     if (isVersionGreaterOrEqual(currentVersion, targetVersion)) {
                         println("Marking function for removal in file: ${file.path}, target version: $targetVersion")
-                        i = skipFunction(lines, i, modifiedLines)
+                        i = skipFunction(lines, i)
                         continue
                     }
                 }
@@ -119,7 +127,29 @@ fun processSourceFiles(sourceDir: File, currentVersion: String) {
     }
 }
 
-fun skipFunction(lines: List<String>, startIndex: Int, modifiedLines: MutableList<String>): Int {
+fun isClassAnnotatedForRemoval(lines: List<String>, currentVersion: String): Boolean {
+    var i = 0
+    while (i < lines.size) {
+        val line = lines[i]
+
+        if (line.contains("@RemoveAfter")) {
+            val match = Regex("""@RemoveAfter\("(\d+\.\d+\.\d+)"\)""").find(line)
+            if (match != null) {
+                val targetVersion = match.groupValues[1]
+                if (isVersionGreaterOrEqual(currentVersion, targetVersion)) {
+                    if (i + 1 < lines.size && lines[i + 1].trim().startsWith("class ")) {
+                        return true
+                    }
+                }
+            }
+        }
+
+        i++
+    }
+    return false
+}
+
+fun skipFunction(lines: List<String>, startIndex: Int): Int {
     var i = startIndex
     var braceCount = 0
     var isFunctionStarted = false
