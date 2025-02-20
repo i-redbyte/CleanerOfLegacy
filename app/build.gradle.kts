@@ -88,10 +88,10 @@ fun processSourceFiles(sourceDir: File, currentVersion: String) {
     sourceDir.walk().filter { it.isFile && it.extension == "kt" }.forEach { file ->
         val lines = file.readLines()
 
-        val isClassAnnotated = isClassAnnotatedForRemoval(lines, currentVersion)
+        val isDeclarationAnnotated = isDeclarationAnnotatedForRemoval(lines, currentVersion)
 
-        if (isClassAnnotated) {
-            println("Deleting file: ${file.path} (class is annotated with @RemoveAfter)")
+        if (isDeclarationAnnotated) {
+            println("Deleting file: ${file.path} (declaration is annotated with @RemoveAfter)")
             file.delete()
             return@forEach
         }
@@ -127,7 +127,7 @@ fun processSourceFiles(sourceDir: File, currentVersion: String) {
     }
 }
 
-fun isClassAnnotatedForRemoval(lines: List<String>, currentVersion: String): Boolean {
+fun isDeclarationAnnotatedForRemoval(lines: List<String>, currentVersion: String): Boolean {
     var i = 0
     while (i < lines.size) {
         val line = lines[i]
@@ -137,7 +137,7 @@ fun isClassAnnotatedForRemoval(lines: List<String>, currentVersion: String): Boo
             if (match != null) {
                 val targetVersion = match.groupValues[1]
                 if (isVersionGreaterOrEqual(currentVersion, targetVersion)) {
-                    if (i + 1 < lines.size && lines[i + 1].trim().startsWith("class ")) {
+                    if (i + 1 < lines.size && isKotlinDeclaration(lines[i + 1].trim())) {
                         return true
                     }
                 }
@@ -147,6 +147,16 @@ fun isClassAnnotatedForRemoval(lines: List<String>, currentVersion: String): Boo
         i++
     }
     return false
+}
+
+fun isKotlinDeclaration(line: String): Boolean {
+    return line.startsWith("class ") ||
+            line.startsWith("interface ") ||
+            line.startsWith("object ") ||
+            line.startsWith("enum class ") ||
+            line.startsWith("data class ") ||
+            line.startsWith("sealed class ") ||
+            line.startsWith("abstract class ")
 }
 
 fun skipFunction(lines: List<String>, startIndex: Int): Int {
@@ -165,8 +175,11 @@ fun skipFunction(lines: List<String>, startIndex: Int): Int {
             braceCount += line.count { it == '{' }
             braceCount -= line.count { it == '}' }
 
-            if (braceCount == 0 && isFunctionStarted) {
+            if (braceCount == 0) {
                 i++
+                if (i < lines.size && lines[i].isBlank()) {
+                    i++
+                }
                 break
             }
         }

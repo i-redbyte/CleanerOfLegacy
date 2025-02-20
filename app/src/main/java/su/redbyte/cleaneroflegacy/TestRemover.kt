@@ -7,12 +7,15 @@ class TestRemover {
     fun test1() {
 
     }
-
     @RemoveAfter("1.0.0")
     fun test() {
 // TODO: test
     }
 
+    @RemoveAfter("1.0.0")
+    fun test3() {
+// TODO: test
+    }
     fun testPretest() {
 
     }
