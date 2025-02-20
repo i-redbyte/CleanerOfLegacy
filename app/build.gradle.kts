@@ -177,7 +177,7 @@ fun skipFunction(lines: List<String>, startIndex: Int): Int {
 
             if (braceCount == 0) {
                 i++
-                if (i < lines.size && lines[i].isBlank()) {
+                if (i < lines.size && lines[i].isBlank()) { //todo: if or while?
                     i++
                 }
                 break
@@ -193,14 +193,11 @@ fun skipFunction(lines: List<String>, startIndex: Int): Int {
 fun isVersionGreaterOrEqual(current: String, target: String): Boolean {
     val currentParts = current.split(".").mapNotNull { it.toIntOrNull() }
     val targetParts = target.split(".").mapNotNull { it.toIntOrNull() }
-
-    for (i in 0 until maxOf(currentParts.size, targetParts.size)) {
-        val c = currentParts.getOrElse(i) { 0 }
-        val t = targetParts.getOrElse(i) { 0 }
+    for ((c, t) in currentParts.zip(targetParts)) {
         if (c > t) return true
         if (c < t) return false
     }
-    return true
+    return currentParts.size >= targetParts.size
 }
 
 tasks.named("preBuild") {
